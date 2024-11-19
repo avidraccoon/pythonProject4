@@ -8,7 +8,7 @@ import pygame
 from numpy import ndarray
 
 sw, sh = 800, 800
-tw, th = 200, 200
+tw, th = 100, 100
 pw, ph = sw/tw, sh/th
 pygame.init()
 screen = pygame.display.set_mode((sw, sh))
@@ -53,7 +53,7 @@ defaultMaterial = Material(0, np.array([1.0, 0, 0]), np.array([0.0, 0, 0]), 0)
 defaultMaterial2 = Material(0, np.array([0.7, 0.7, 0.2]), np.array([0.0, 0, 0]), 0)
 defaultMaterial3 = Material(0, np.array([0, 0, 1]), np.array([0.0, 0, 0]), 0)
 defaultLight = Material(0, np.array([1, 1, 1]), np.array([1, 1, 1]), 60)
-defaultLight2 = Material(0, np.array([1, 1, 1]), np.array([1, 1, 1]), 2)
+defaultLight2 = Material(0, np.array([1, 1, 1]), np.array([1, 1, 1]), 5)
 emptyMaterial = Material(0, np.array([1, 1, 1]), np.array([0.0, 0, 0]), 0)
 """spheres = [
     Sphere(np.array([-2, 1, 30]), 5, defaultMaterial),
@@ -64,8 +64,10 @@ emptyMaterial = Material(0, np.array([1, 1, 1]), np.array([0.0, 0, 0]), 0)
 ]"""
 
 spheres = [
-    Sphere(np.array([0, 8, 50, 8]), 10, defaultMaterial),
-    Sphere(np.array([0, -8, 50, 8]), 10, defaultLight),
+    Sphere(np.array([0, 0, 50, 8]), 10, defaultMaterial),
+    Sphere(np.array([50, -60, 90, 8]), 40, defaultLight),
+    Sphere(np.array([0, 30, 50, 8]), 25, defaultMaterial2),
+    Sphere(np.array([-15, 30, -50, 8]), 30, defaultLight2),
 ]
 
 def sign(value):
@@ -82,11 +84,14 @@ def normalize(vec: ndarray):
 def randomSphere():
     rotation = random.random() * math.pi * 2
     zRotation = random.random() * math.pi * 2
+    wRotation = random.random() * math.pi * 2
     circleSize = math.cos(zRotation)
-    xPos = circleSize*math.cos(rotation)
-    yPos = circleSize*math.sin(rotation)
-    zPos = math.sin(zRotation)
-    return np.array([xPos, yPos, zPos, circleSize])
+    sphereSize = math.cos(wRotation)
+    xPos = circleSize*math.cos(rotation)*sphereSize
+    yPos = circleSize*math.sin(rotation)*sphereSize
+    zPos = math.sin(zRotation)*sphereSize
+    wPos = math.sin(wRotation)
+    return np.array([xPos, yPos, zPos, wPos])
 
 def randomHemisphere(normal: ndarray):
     direction = randomSphere()
@@ -163,7 +168,7 @@ def copyVec3(vec:ndarray):
 def copyRay(ray):
     return Ray(copyVec3(ray.origin), copyVec3(ray.direction))
 
-target_dep = 2
+target_dep = 3
 def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
     if type(rayColor) == type(None): rayColor = np.array([1.0, 1, 1])
     incomingLight: ndarray = np.array([0.0, 0, 0])
@@ -180,11 +185,12 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
             emittedLight = material.lightColor * material.lightStrength
             incomingLight += emittedLight * rayColor
             rayColor *= material.color
+            #return rayColor
                 #pass
             #return rayColor
             #if depth < 2:
             combindedColor = np.array([0.0, 0.0, 0.0])
-            for i in range(10):
+            for i in range(25):
                 ray = copyRay(original)
                 ray.origin = hit.hitPoint
                 dif = randomHemisphere(hit.normal)
@@ -192,7 +198,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
                 ray.direction = mix(dif, ref, material.smoothness)
                 combindedColor = combindedColor+traceRay(ray, depth+1, rayColor)
             #return combindedColor
-            combindedColor = combindedColor * 0.1
+            combindedColor = combindedColor * (1.0/25.0)
             incomingLight += combindedColor
             #print(incomingLight)
 
@@ -208,20 +214,22 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
     return incomingLight
 
 def calc(x, y):
-    ray = Ray(np.array([0.0, 0, 0, 0]), normalize(np.array([x - 0.5, y - 0.5, 1, frames / 100])))
+    ray = Ray(np.array([0.0, 0, 0, 0]), normalize(np.array([x - 0.5, y - 0.5, 1, 1.0 / 100])))
     return traceRay(ray)
 
 def colorCalculation(x, y):
     result = np.array([0.0, 0, 0])
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         # Start the load operations and mark each future with its URL
-        results = [executor.submit(calc, x, y) for i in range(10)]
+        results = [executor.submit(calc, x, y) for i in range(25)]
         for future in concurrent.futures.as_completed(results):
             result = result + future.result()
         executor.shutdown(wait=True)
-    result = result * 0.1
-    if np.linalg.norm(result) < 0.05:
-        result = np.array([0.0, 0, 1.0])
+    if np.linalg.norm(result) < 0.001:
+        result = np.array([0.0, 0, 0.2*frames])
+    else:
+        result = result * 0.04
+
     result[0] = min(result[0], 1)
     result[1] = min(result[1], 1)
     result[2] = min(result[2], 1)
