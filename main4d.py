@@ -166,7 +166,7 @@ def copyRay(ray):
 target_dep = 2
 def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
     if type(rayColor) == type(None): rayColor = np.array([1.0, 1, 1])
-    incomingLight: ndarray = np.array([0.0, 1, 0])
+    incomingLight: ndarray = np.array([0.0, 0, 0])
     original = copyRay(ray)
     if depth<target_dep:
         hit: HitInfo = rayIntersection(ray)
@@ -184,7 +184,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
             #return rayColor
             #if depth < 2:
             combindedColor = np.array([0.0, 0.0, 0.0])
-            for i in range(25):
+            for i in range(10):
                 ray = copyRay(original)
                 ray.origin = hit.hitPoint
                 dif = randomHemisphere(hit.normal)
@@ -192,7 +192,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
                 ray.direction = mix(dif, ref, material.smoothness)
                 combindedColor = combindedColor+traceRay(ray, depth+1, rayColor)
             #return combindedColor
-            combindedColor = combindedColor * 0.04
+            combindedColor = combindedColor * 0.1
             incomingLight += combindedColor
             #print(incomingLight)
 
@@ -213,13 +213,15 @@ def calc(x, y):
 
 def colorCalculation(x, y):
     result = np.array([0.0, 0, 0])
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         # Start the load operations and mark each future with its URL
-        results = [executor.submit(calc, x, y) for i in range(25)]
+        results = [executor.submit(calc, x, y) for i in range(10)]
         for future in concurrent.futures.as_completed(results):
             result = result + future.result()
         executor.shutdown(wait=True)
-    result = result * 0.04
+    result = result * 0.1
+    if np.linalg.norm(result) < 0.05:
+        result = np.array([0.0, 0, 1.0])
     result[0] = min(result[0], 1)
     result[1] = min(result[1], 1)
     result[2] = min(result[2], 1)
