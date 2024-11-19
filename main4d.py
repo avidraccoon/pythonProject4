@@ -192,7 +192,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
                 ray.direction = mix(dif, ref, material.smoothness)
                 combindedColor = combindedColor+traceRay(ray, depth+1, rayColor)
             #return combindedColor
-            combindedColor = combindedColor * 0.2
+            combindedColor = combindedColor * 0.04
             incomingLight += combindedColor
             #print(incomingLight)
 
@@ -207,13 +207,19 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
     #print(depth)
     return incomingLight
 
+def calc(x, y):
+    ray = Ray(np.array([0.0, 0, 0, 0]), normalize(np.array([x - 0.5, y - 0.5, 1, frames / 100])))
+    return traceRay(ray)
 
 def colorCalculation(x, y):
     result = np.array([0.0, 0, 0])
-    for i in range(25):
-        ray = Ray(np.array([0.0, 0, 0, 0]), normalize(np.array([x-0.5, y-0.5, 1, frames/100])))
-        result = result + traceRay(ray)
-    result = result * 0.2
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        # Start the load operations and mark each future with its URL
+        results = [executor.submit(calc, x, y) for i in range(25)]
+        for future in concurrent.futures.as_completed(results):
+            result = result + future.result()
+        executor.shutdown(wait=True)
+    result = result * 0.04
     result[0] = min(result[0], 1)
     result[1] = min(result[1], 1)
     result[2] = min(result[2], 1)
@@ -234,7 +240,7 @@ def setPixelColors(func):
     global grid, frames
     prev_multi = 1-(1/math.sqrt(frames))
     cur_multi = (1/math.sqrt(frames))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         [[executor.submit(setColor, func, j, i) for j in range(tw)] for i in range(th)]
         #for i in range(th):
         #    for j in range(tw):
