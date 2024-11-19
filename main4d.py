@@ -184,7 +184,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
             #return rayColor
             #if depth < 2:
             combindedColor = np.array([0.0, 0.0, 0.0])
-            for i in range(5):
+            for i in range(25):
                 ray = copyRay(original)
                 ray.origin = hit.hitPoint
                 dif = randomHemisphere(hit.normal)
@@ -210,7 +210,7 @@ def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
 
 def colorCalculation(x, y):
     result = np.array([0.0, 0, 0])
-    for i in range(5):
+    for i in range(25):
         ray = Ray(np.array([0.0, 0, 0, 0]), normalize(np.array([x-0.5, y-0.5, 1, frames/100])))
         result = result + traceRay(ray)
     result = result * 0.2
@@ -238,7 +238,6 @@ def setPixelColors(func):
         [[executor.submit(setColor, func, j, i) for j in range(tw)] for i in range(th)]
         #for i in range(th):
         #    for j in range(tw):
-
         executor.shutdown(wait=True)
 
         #print(i)
