@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 import random
 import numpy as np
-
+import concurrent.futures
 import pygame
 from numpy import ndarray
 
@@ -12,9 +12,9 @@ tw, th = 200, 200
 pw, ph = sw/tw, sh/th
 pygame.init()
 screen = pygame.display.set_mode((sw, sh))
-color = [0, 0, 0]
+#color = [0, 0, 0]
 frames = 1
-def drawPixel(x, y):
+def drawPixel(x, y, color):
     #print(color)
     pygame.draw.rect(screen, color, [x*pw, y*ph, pw, ph])
 
@@ -166,7 +166,7 @@ def copyRay(ray):
 target_dep = 2
 def traceRay(ray: Ray, depth = 0, rayColor = None) -> ndarray:
     if type(rayColor) == type(None): rayColor = np.array([1.0, 1, 1])
-    incomingLight: ndarray = np.array([0.0, 0, 0])
+    incomingLight: ndarray = np.array([0.0, 1, 0])
     original = copyRay(ray)
     if depth<target_dep:
         hit: HitInfo = rayIntersection(ray)
@@ -220,21 +220,27 @@ def colorCalculation(x, y):
 
     #print(result)
     return [result[0], result[1], result[2]]
+def setColor(func, j, i):
+    result = func(j / tw, i / th)
+    # if frames == 1:
+    grid[i][j] = np.array([result[0], result[1], result[2]])
+    # else:
+    #    grid[i][j] = (grid[i][j]*prev_multi+np.array([result[0], result[1], result[2]])*cur_multi)
+    # if grid[i][j][0] > 0.1: print(grid[i][j], result)
+    drawPixel(j, i, [grid[i][j][0] * 255, grid[i][j][1] * 255, grid[i][j][2] * 255])
+    pygame.display.update()
+
 def setPixelColors(func):
     global grid, frames
     prev_multi = 1-(1/math.sqrt(frames))
     cur_multi = (1/math.sqrt(frames))
-    for i in range(th):
-        for j in range(tw):
-            result = func(j/tw, i/th)
-            #if frames == 1:
-            grid[i][j] = np.array([result[0], result[1], result[2]])
-            #else:
-            #    grid[i][j] = (grid[i][j]*prev_multi+np.array([result[0], result[1], result[2]])*cur_multi)
-            #if grid[i][j][0] > 0.1: print(grid[i][j], result)
-            setColor(grid[i][j][0]*255, grid[i][j][1]*255, grid[i][j][2]*255)
-            drawPixel(j, i)
-        pygame.display.update()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        [[executor.submit(setColor, func, j, i) for j in range(tw)] for i in range(th)]
+        #for i in range(th):
+        #    for j in range(tw):
+
+        executor.shutdown(wait=True)
+
         #print(i)
     print("Frame: "+str(frames)+" Multi: "+str(cur_multi))
     frames+=1
